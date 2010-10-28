@@ -1,0 +1,243 @@
+<?xml version="1.0"?>
+
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one or more
+    contributor license agreements.  See the NOTICE file distributed with
+    this work for additional information regarding copyright ownership.
+    The ASF licenses this file to You under the Apache License, Version 2.0
+    the "License"); you may not use this file except in compliance with
+    the License.  You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+ -->
+
+<project name="apachecon" basedir=".">
+  <property name="dest.dir" value="target/"/>
+  <property name="classes.dir" value="${dest.dir}/classes"/>
+
+  <target name="clean">
+    <delete dir="${dest.dir}/"/>
+  </target>
+
+  <path id="compile.classpath">
+    <fileset dir="lib">
+      <include name="*.jar"/>
+      <exclude name="*job*"/>
+    </fileset>
+
+  </path>
+
+  <path id="runtime.classpath">
+    <path refid="compile.classpath"/>
+    <path path="${classes.dir}"/>
+    <fileset dir="src/main/resources"/>
+  </path>
+
+  <target name="compile"
+          description="Compile the source code."
+          >
+    <mkdir dir="${classes.dir}"/>
+    <javac classpathref="compile.classpath"
+           destdir="${classes.dir}"
+           target="1.6"
+           source="1.6"
+           debug="on"
+           encoding="utf8"
+           sourcepath=""
+            >
+      <src path="src/main/java"/>
+    </javac>
+  </target>
+
+  <target name="init">
+    <mkdir dir="${wiki.dir}"/>
+    <mkdir dir="${wiki.dir}/tmp"/>
+  </target>
+
+  <property name="wiki.dir" value="wikipedia"/>
+  <property name="num.chunks" value="150"/>
+
+  <target name="check-files">
+    <available file="${wiki.dir}/enwiki-20070527-pages-articles.xml.bz2" property="enwiki.exists"/>
+    <available file="${wiki.dir}/enwiki-20070527-pages-articles.xml" property="enwiki.expanded"/>
+    <available file="${wiki.dir}/chunks-all/chunk-0001.xml" property="enwiki.split"/>
+    <available file="${wiki.dir}/n2/part-full.txt" property="n2.expanded"/>
+    <echo > Exists: ${enwiki.exists}  Expanded: ${enwiki.expanded} Split: ${enwiki.split} N2: ${n2.expanded}</echo>
+  </target>
+
+  <target name="get-enwiki" depends="check-files" unless="enwiki.exists">
+    <echo>Downloading Wikipedia Data - (~2.5GB)</echo>
+    <get src="http://people.apache.org/~gsingers/wikipedia/enwiki-20070527-pages-articles.xml.bz2"
+    dest="${wiki.dir}/enwiki-20070527-pages-articles.xml.bz2"/>
+  </target>
+
+  <target name="expand-enwiki" depends="check-files" unless="enwiki.expanded">
+    <bunzip2 src="${wiki.dir}/enwiki-20070527-pages-articles.xml.bz2" dest="${wiki.dir}/"/>
+  </target>
+  <target name="enwiki-files" depends="check-files">
+    <antcall target="get-enwiki"/>
+    <antcall target="expand-enwiki"/>
+    <antcall target="split-enwiki"/>
+  </target>
+
+  <target name="split-enwiki" unless="enwiki.split">
+    <echo>Split Wikipedia articles up for training and testing</echo>
+    <java classname="org.apache.mahout.classifier.bayes.WikipediaXmlSplitter"
+          fork="true" maxmemory="738m">
+      <classpath refid="runtime.classpath"/>
+      <arg line="--dumpFile ${wiki.dir}/enwiki-20070527-pages-articles.xml --outputDir ${wiki.dir}/chunks-all -c 64 --numChunks ${num.chunks}"/>
+    </java>
+    <mkdir dir="${wiki.dir}/chunks-classification"/>
+    <mkdir dir="${wiki.dir}/chunks-classification-test"/>
+    <copy todir="${wiki.dir}/chunks-classification">
+      <fileset dir="${wiki.dir}/chunks-all">
+        <include name="chunk-000*"/>
+        <include name="chunk-001*"/>
+        <include name="chunk-002*"/>
+        <include name="chunk-003*"/>
+      </fileset>
+    </copy>
+    <copy todir="${wiki.dir}/chunks-classification-test">
+      <fileset dir="${wiki.dir}/chunks-all">
+        <include name="chunk-0101.xml"/>
+        <include name="chunk-0102.xml"/>
+        <include name="chunk-0103.xml"/>
+        <include name="chunk-0104.xml"/>
+        <include name="chunk-0105.xml"/>
+        <include name="chunk-0107.xml"/>
+        <include name="chunk-0108.xml"/>
+        <include name="chunk-0109.xml"/>
+        <include name="chunk-0130.xml"/>
+        <include name="chunk-0131.xml"/>
+        <include name="chunk-0132.xml"/>
+        <include name="chunk-0133.xml"/>
+        <include name="chunk-0134.xml"/>
+        <include name="chunk-0135.xml"/>
+        <include name="chunk-0137.xml"/>
+        <include name="chunk-0139.xml"/>
+      </fileset>
+    </copy>
+  </target>
+
+
+  <target name="n2-files" unless="n2.expanded">
+    <echo>Downloading Clustering data (9.2M)</echo>
+    <get src="http://people.apache.org/~gsingers/wikipedia/n2.tar.gz"
+         dest="${wiki.dir}/n2.tar.gz"/>
+    <gunzip src="${wiki.dir}/n2.tar.gz" dest="${wiki.dir}/tmp/n2.tar"/>
+    <untar src="${wiki.dir}/tmp/n2.tar" dest="${wiki.dir}/"/>
+  </target>
+  <target name="install" depends="init,compile, enwiki-files, n2-files"
+          description="Get the necessary pieces to run the examples">
+
+
+
+  </target>
+
+
+
+  <!-- Classification -->
+  <!-- The categories file to use.  Must  -->
+  <property name="categories.file" value="mahout-src/examples/src/test/resources/subjects.txt"/>
+  <property name="cat.dir" value="subjects"/>
+  <target name="prepare-docs" depends="compile"
+          description="Prepare the Wikipedia Classification docs for training">
+    <java classname="org.apache.mahout.classifier.bayes.WikipediaDatasetCreatorDriver" fork="true" maxmemory="738m">
+      <classpath refid="runtime.classpath"/>
+      <arg value="--input"/>
+      <arg value="${wiki.dir}/chunks-classification"/>
+      <arg value="--output"/>
+      <arg value="${wiki.dir}/${cat.dir}/prepared"/>
+      <arg value="--categories"/>
+      <arg value="${categories.file}"/>
+    </java>
+  </target>
+  <target name="prepare-test-docs" depends="compile"
+          description="Prepare the Wikipedia Classification docs for testing">
+    <java classname="org.apache.mahout.classifier.bayes.WikipediaDatasetCreatorDriver" fork="true" maxmemory="738m">
+      <classpath refid="runtime.classpath"/>
+      <arg value="--input"/>
+      <arg value="${wiki.dir}/chunks-classification-test"/>
+      <arg value="--output"/>
+      <arg value="${wiki.dir}/${cat.dir}/prepared-test"/>
+      <arg value="--categories"/>
+      <arg value="${categories.file}"/>
+    </java>
+  </target>
+
+  <property name="gram.size" value="1"/>
+  <!-- Can be bayes or cbayes -->
+  <property name="classifier.type" value="bayes"/>
+  <target name="train" depends="compile" description="Run the Bayes Trainer">
+    <java classname="org.apache.mahout.classifier.bayes.TrainClassifier" fork="true" maxmemory="728M">
+      <classpath refid="runtime.classpath"/>
+      <arg value="--input"/>
+      <arg value="${wiki.dir}/${cat.dir}/prepared"/>
+      <arg value="--output"/>
+      <arg value="${wiki.dir}/${cat.dir}/model"/>
+      <arg value="--gramSize"/>
+      <arg value="${gram.size}"/>
+      <arg value="--classifierType"/>
+      <arg value="${classifier.type}"/>
+    </java>
+  </target>
+  <target name="test-internal" depends="compile" unless="verbose">
+    <java classname="org.apache.mahout.classifier.bayes.TestClassifier" fork="true" maxmemory="728M">
+      <classpath refid="runtime.classpath"/>
+      <arg value="--model"/>
+      <arg value="${wiki.dir}/${cat.dir}/model"/>
+      <arg value="--testDir"/>
+      <arg value="${wiki.dir}/${cat.dir}/prepared-test"/>
+      <arg value="--gramSize"/>
+      <arg value="${gram.size}"/>
+      <arg value="--classifierType"/>
+      <arg value="${classifier.type}"/>
+    </java>
+  </target>
+  <target name="test-internal-vb" depends="compile" if="verbose">
+    <java classname="org.apache.mahout.classifier.bayes.TestClassifier" fork="true" maxmemory="728M">
+      <classpath refid="runtime.classpath"/>
+      <arg value="--model"/>
+      <arg value="${wiki.dir}/${cat.dir}/model"/>
+      <arg value="--testDir"/>
+      <arg value="${wiki.dir}/${cat.dir}/prepared-test"/>
+      <arg value="--gramSize"/>
+      <arg value="${gram.size}"/>
+      <arg value="--classifierType"/>
+      <arg value="${classifier.type}"/>
+      <arg value="--verbose"/>
+    </java>
+  </target>
+  <target name="test" depends="compile,test-internal,test-internal-vb"
+          description="Run the Bayes Classifier on the test docs">
+
+  </target>
+
+  <target name="classifier-example" depends="prepare-docs, prepare-test-docs, train, test"
+          description="Run all the classifer steps"/>
+
+  <!-- Helper Targets -->
+
+  <property name="seq.file" value="${wiki.dir}/n2/k-output/points/part-00000"/>
+  <target name="dump" description="Dumps out the values of a Hadoop SequenceFile specified by the seq.file property">
+    <java classname="org.apache.mahout.utils.SequenceFileDumper"
+          fork="true" maxmemory="738m">
+      <classpath refid="runtime.classpath"/>
+      <arg value="-s"/>
+      <arg value="${seq.file}"/>
+
+    </java>
+  </target>
+
+  <!--
+   All targets below this line are for internal use only
+
+   -->
+
+</project>
