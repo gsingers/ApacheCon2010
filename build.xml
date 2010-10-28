@@ -126,14 +126,8 @@
   </target>
 
 
-  <target name="n2-files" unless="n2.expanded">
-    <echo>Downloading Clustering data (9.2M)</echo>
-    <get src="http://people.apache.org/~gsingers/wikipedia/n2.tar.gz"
-         dest="${wiki.dir}/n2.tar.gz"/>
-    <gunzip src="${wiki.dir}/n2.tar.gz" dest="${wiki.dir}/tmp/n2.tar"/>
-    <untar src="${wiki.dir}/tmp/n2.tar" dest="${wiki.dir}/"/>
-  </target>
-  <target name="install" depends="init,compile, enwiki-files, n2-files"
+
+  <target name="install" depends="init,compile, enwiki-files"
           description="Get the necessary pieces to run the examples">
 
 
@@ -144,7 +138,7 @@
 
   <!-- Classification -->
   <!-- The categories file to use.  Must  -->
-  <property name="categories.file" value="mahout-src/examples/src/test/resources/subjects.txt"/>
+  <property name="categories.file" value="src/main/resources/subjects.txt"/>
   <property name="cat.dir" value="subjects"/>
   <target name="prepare-docs" depends="compile"
           description="Prepare the Wikipedia Classification docs for training">
@@ -156,6 +150,8 @@
       <arg value="${wiki.dir}/${cat.dir}/prepared"/>
       <arg value="--categories"/>
       <arg value="${categories.file}"/>
+      <arg value="--analyzer"/>
+      <arg value="com.grantingersoll.intell.index.WikipediaAnalyzer"/>
     </java>
   </target>
   <target name="prepare-test-docs" depends="compile"
@@ -168,6 +164,8 @@
       <arg value="${wiki.dir}/${cat.dir}/prepared-test"/>
       <arg value="--categories"/>
       <arg value="${categories.file}"/>
+      <arg value="--analyzer"/>
+      <arg value="com.grantingersoll.intell.index.WikipediaAnalyzer"/>
     </java>
   </target>
 
