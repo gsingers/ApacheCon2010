@@ -24,6 +24,7 @@ import java.util.List;
  *
  *
  **/
+
 public class ItemItemRecSearchComponent extends SearchComponent {
 
   public static final String COMPONENT_NAME = "recs";
