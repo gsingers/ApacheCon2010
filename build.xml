@@ -33,6 +33,9 @@
     <fileset dir="lib/solr">
       <include name="*.jar"/>
     </fileset>
+    <fileset dir="lib/lucene">
+      <include name="*.jar"/>
+    </fileset>
   </path>
 
   <path id="runtime.classpath">

@@ -47,6 +47,7 @@
        classpath, this is useful for including all jars in a directory.
     -->
     <lib dir="../../lib/clustering"/>
+  <lib dir="../../hadoop-conf"/>
     <lib dir="../../target/"/>
     <lib dir="../../lib/" />
 
@@ -640,7 +641,7 @@
   </searchComponent>
 
 
-  <searchComponent name="recommender" class="com.grantingersoll.intell.search.RecommenderSearchComponent">
+  <searchComponent name="recommender" class="com.grantingersoll.intell.search.ItemItemRecSearchComponent">
     <str name="recommendations">../src/main/resources/recommendations.txt</str>
   </searchComponent>
 
@@ -948,7 +949,7 @@
   </updateRequestProcessorChain>
   -->
 
-  <!--<updateRequestProcessorChain name="classify">
+  <updateRequestProcessorChain name="classify">
     <processor class="com.grantingersoll.intell.index.BayesUpdateRequestProcessorFactory" >
       <str name="inputField">body</str>
       <str name="outputField">category</str>
@@ -958,7 +959,7 @@
     </processor>
     <processor class="solr.LogUpdateProcessorFactory" />
     <processor class="solr.RunUpdateProcessorFactory" />
-  </updateRequestProcessorChain>-->
+  </updateRequestProcessorChain>
 
 
 
