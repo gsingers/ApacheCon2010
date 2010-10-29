@@ -30,7 +30,9 @@
       <include name="*.jar"/>
       <exclude name="*job*"/>
     </fileset>
-
+    <fileset dir="lib/solr">
+      <include name="*.jar"/>
+    </fileset>
   </path>
 
   <path id="runtime.classpath">
@@ -53,6 +55,14 @@
             >
       <src path="src/main/java"/>
     </javac>
+  </target>
+  <target  name="jar" depends="compile">
+    <jar
+        destfile="${dest.dir}/apachecon2010.jar"
+        basedir="${dest.dir}/classes"
+      	>
+        
+      </jar>
   </target>
 
   <target name="init">

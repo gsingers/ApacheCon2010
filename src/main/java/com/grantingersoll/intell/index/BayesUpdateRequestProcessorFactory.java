@@ -1,5 +1,8 @@
 package com.grantingersoll.intell.index;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.mahout.classifier.bayes.algorithm.BayesAlgorithm;
 import org.apache.mahout.classifier.bayes.datastore.InMemoryBayesDatastore;
 import org.apache.mahout.classifier.bayes.interfaces.Algorithm;
@@ -16,6 +19,7 @@ import org.apache.solr.update.processor.UpdateRequestProcessorFactory;
 import org.slf4j.Logger;
 
 import java.io.File;
+import java.io.IOException;
 
 /** A Solr <code>UpdateRequestProcessorFactory</code> that uses the Mahout Bayes
  *  Classifier to add a category label to documents at index time.
@@ -102,9 +106,13 @@ public class BayesUpdateRequestProcessorFactory extends UpdateRequestProcessorFa
     if (o != null && o instanceof String) {
       modelDirName = (String) o;
     }
-    
     modelDir = new File(modelDirName);
-    
+    try {
+      log.info("Model location: " + modelDir.getCanonicalPath());
+    } catch (IOException e) {
+      log.error("Exception", e);
+    }
+
     if (!modelDir.isDirectory()) {
       log.warn("WARNING: model directory " + modelDir.getAbsolutePath() + " does not exist. Classification disabled");
       enabled = false;
@@ -116,6 +124,9 @@ public class BayesUpdateRequestProcessorFactory extends UpdateRequestProcessorFa
   public void initClassifierContext() {
     try {
       Parameters p = new Parameters();
+      /*FileSystem fs = FileSystem.get(new Configuration());
+      Path path = fs.makeQualified(new Path(modelDir.getCanonicalPath()));
+      p.set("basePath", path.toString());*/
       p.set("basePath", modelDir.getCanonicalPath());
       Datastore ds = new InMemoryBayesDatastore(p);
       Algorithm a  = new BayesAlgorithm();
@@ -127,7 +138,7 @@ public class BayesUpdateRequestProcessorFactory extends UpdateRequestProcessorFa
       enabled = true;
     }
     catch (Exception e) {
-      throw new SolrException(SolrException.ErrorCode.SERVER_ERROR,"Error initializing clasifier context", e);
+      throw new SolrException(SolrException.ErrorCode.SERVER_ERROR,"Error initializing classifier context", e);
     }
   }
   

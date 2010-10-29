@@ -30,7 +30,7 @@
     that you fully re-index after changing this setting as it can affect both how text is indexed
     and queried.
   -->
-  <luceneMatchVersion>LUCENE_30</luceneMatchVersion>
+  <luceneMatchVersion>LUCENE_31</luceneMatchVersion>
 
   <!-- lib directives can be used to instruct Solr to load an Jars identified
        and use them to resolve any "plugins" specified in your solrconfig.xml or
@@ -47,8 +47,8 @@
        classpath, this is useful for including all jars in a directory.
     -->
     <lib dir="../../lib/clustering"/>
-    <lib dir="../../lib/" regex="commons-lang-2.4\.jar" />
-    <lib dir="../../lib/" regex="log4j-\d.*\.jar" />
+    <lib dir="../../target/"/>
+    <lib dir="../../lib/" />
 
   <!--<lib dir="../../contrib/extraction/lib" />-->
   <!-- When a regex is specified in addition to a directory, only the files in that
@@ -524,6 +524,8 @@
        <str name="mlt.fl">titleBody</str>
        <int name="mlt.count">3</int>
 
+       <bool name="recs">true</bool>
+       <int name="recs.rows">3</int>
        <!-- Faceting defaults -->
        <str name="facet">on</str>
        <str name="facet.field">category</str>
@@ -571,6 +573,7 @@
      <arr name="last-components">
        <str>spellcheck</str>
        <str>clusteringComponent</str>
+       <str>recommender</str>
        <str>elevator</str>
      </arr>
      <!--
@@ -637,6 +640,9 @@
   </searchComponent>
 
 
+  <searchComponent name="recommender" class="com.grantingersoll.intell.search.RecommenderSearchComponent">
+    <str name="recommendations">../src/main/resources/recommendations.txt</str>
+  </searchComponent>
 
   <searchComponent name="tvComponent" class="org.apache.solr.handler.component.TermVectorComponent"/>
   <!-- A Req Handler for working with the tvComponent.  This is purely as an example.
@@ -942,17 +948,17 @@
   </updateRequestProcessorChain>
   -->
 
-  <updateRequestProcessorChain name="classify">
+  <!--<updateRequestProcessorChain name="classify">
     <processor class="com.grantingersoll.intell.index.BayesUpdateRequestProcessorFactory" >
-      <str name="inputField">titleBody</str>
+      <str name="inputField">body</str>
       <str name="outputField">category</str>
       <str name="defaultCategory">none</str>
-      <str name="model">../../wikipedia/subjects/model</str>
+      <str name="model">../wikipedia/subjects/model</str>
 
     </processor>
     <processor class="solr.LogUpdateProcessorFactory" />
     <processor class="solr.RunUpdateProcessorFactory" />
-  </updateRequestProcessorChain>
+  </updateRequestProcessorChain>-->
 
 
 

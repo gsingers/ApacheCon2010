@@ -453,6 +453,7 @@
    -->
 
      <!-- wikipedia doc id -->
+   <!-- Contains a long, but we'll use a string so the QueryElevationComp works -->
         <field name="docid" type="string" indexed="true" stored="true" required="true"/>
         <field name="file" type="string" indexed="true" stored="true" />
 
