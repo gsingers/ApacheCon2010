@@ -138,7 +138,14 @@
     </copy>
   </target>
 
-
+  <target name="war" depends="init,compile">
+    <copy tofile="solr/webapps/solr.war" file="lib/solr/solr-clean.war"/>
+    <war destfile="solr/webapps/solr.war" update="true">
+      <lib dir="lib">
+        <include name="*.jar"/>
+      </lib>
+    </war>
+  </target>
 
   <target name="install" depends="init,compile, enwiki-files"
           description="Get the necessary pieces to run the examples">
