@@ -457,13 +457,13 @@
         <field name="docid" type="string" indexed="true" stored="true" required="true"/>
         <field name="file" type="string" indexed="true" stored="true" />
 
-        <field name="doctitle" type="text" indexed="true" stored="true" multiValued="true" termVectors="true"/>
-        <field name="body" type="text" indexed="true" stored="true" multiValued="true" termVectors="true"/>
+        <field name="doctitle" type="text" indexed="true" stored="true" multiValued="true" termVectors="true" termOffsets="true" termPositions="true"/>
+        <field name="body" type="text" indexed="true" stored="true" multiValued="true" termVectors="true"  termOffsets="true" termPositions="true"/>
         <field name="docdate" type="date" indexed="true" stored="true" multiValued="false"/>
         <field name="category" type="string" indexed="true" stored="true" multiValued="true"/>
 
 
-        <field name="titleBody" type="text" indexed="true" stored="false" multiValued="true" termVectors="true"/>
+        <field name="titleBody" type="text" indexed="true" stored="false" multiValued="true" termVectors="true"  termOffsets="true" termPositions="true"/>
 
         <field name="spell" type="text_spell" indexed="true" stored="false" multiValued="true"/>
         <!-- Here, default is used to create a "timestamp" field indicating

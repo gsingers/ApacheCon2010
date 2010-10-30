@@ -408,6 +408,10 @@
         &ndash;&gt;
       </arr>
     </listener>-->
+    <!-- Hook in to do clustering -->
+    <listener event="newSearcher" class="com.grantingersoll.intell.clustering.KMeansClusteringEngine">
+
+    </listener>
 
     <!-- a firstSearcher event is fired whenever a new searcher is being
          prepared but there is no current registered searcher to handle
@@ -570,6 +574,14 @@
        <!--<int name="carrot.numDescriptions">5</int>-->
        <!-- produce sub clusters -->
        <bool name="carrot.outputSubClusters">false</bool>
+
+       <!-- KMeansClusteringEngine -->
+       <!-- Return all the points associated with a cluster,
+      -->
+      <bool name="kmeans.points">false</bool>
+       <!-- These will not be cached -->
+      <bool name="kmeans.reportTopFeatures">false</bool>
+
      </lst>
      <arr name="last-components">
        <str>spellcheck</str>
@@ -699,6 +711,27 @@
     <lst name="engine">
       <str name="name">stc</str>
       <str name="carrot.algorithm">org.carrot2.clustering.stc.STCClusteringAlgorithm</str>
+    </lst>
+    <lst name="engine" class="com.grantingersoll.intell.clustering.KMeansClusteringEngine">
+      <str name="name">kmeans</str>
+      <!-- relative to the data dir -->
+      <str name="dir">kmeans</str>
+      <str name="inputField">body</str>
+      <str name="distanceMeasure">org.apache.mahout.common.distance.CosineDistanceMeasure</str>
+      <int name="maxIterations">20</int>
+      <double name="convergence">0.001</double>
+      <!--
+      should we build data structure once we are done calculating the clusters,
+       in the background or wait until requested
+       The tradeoff is CPU vs memory.  if we load them, they will
+       be cached, potentially taking up a good chunk of memory depending on the
+       number of clusters.  If we don't, we have to read them from disk each time
+
+       -->
+      <bool name="cacheClusters">true</bool>
+      <bool name="cachePoints">true</bool>
+
+
     </lst>
   </searchComponent>
 
