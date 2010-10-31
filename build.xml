@@ -33,6 +33,9 @@
     <fileset dir="lib/solr">
       <include name="*.jar"/>
     </fileset>
+    <fileset dir="lib/clustering">
+      <include name="*.jar"/>
+    </fileset>
     <fileset dir="lib/lucene">
       <include name="*.jar"/>
     </fileset>
@@ -66,6 +69,41 @@
       	>
         
       </jar>
+  </target>
+
+  <target name="war" depends="init,compile,jar">
+    <!--<copy tofile="solr/webapps/solr.war" file="lib/solr/solr-clean.war"/>-->
+    <delete  verbose="true" failonerror="false">
+      <fileset dir="solr/work">
+        <include  name="*"/>
+      </fileset>
+      <fileset dir="solr/webapps/">
+        <include name="solr.war"/>
+      </fileset>
+      <fileset dir="${dest.dir}/tmp"/>
+    </delete>
+    <mkdir dir="${dest.dir}/tmp"/>
+    <unwar src="lib/solr/solr-clean.war" dest="${dest.dir}/tmp"/>
+
+    <war destfile="solr/webapps/solr.war" webxml="${dest.dir}/tmp/WEB-INF/web.xml">
+      <webinf dir="${dest.dir}/tmp/WEB-INF"/>
+      <metainf dir="${dest.dir}/tmp/META-INF"/>
+      <zipfileset dir="${dest.dir}/tmp/admin" prefix="admin"/>
+      <fileset dir="${dest.dir}/tmp">
+        <include name="*.*"/>
+      </fileset>
+      <lib dir="${dest.dir}/tmp/WEB-INF/lib"/>
+
+      <lib dir="lib">
+        <include name="*.jar"/>
+      </lib>
+      <lib dir="lib/clustering">
+        <include name="*.jar"/>
+      </lib>
+      <lib dir="target">
+        <include name="*.jar"/>
+      </lib>
+    </war>
   </target>
 
   <target name="init">
@@ -138,14 +176,7 @@
     </copy>
   </target>
 
-  <target name="war" depends="init,compile">
-    <copy tofile="solr/webapps/solr.war" file="lib/solr/solr-clean.war"/>
-    <war destfile="solr/webapps/solr.war" update="true">
-      <lib dir="lib">
-        <include name="*.jar"/>
-      </lib>
-    </war>
-  </target>
+
 
   <target name="install" depends="init,compile, enwiki-files"
           description="Get the necessary pieces to run the examples">

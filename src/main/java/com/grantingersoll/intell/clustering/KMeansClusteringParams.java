@@ -15,4 +15,9 @@ public interface KMeansClusteringParams {
   public static final String IN_CLUSTER = KMEANS + ".in";
   //given a cluster id, list the points
   public static final String LIST_POINTS = KMEANS + ".list.points";
+
+  public static final String BUILD = KMEANS + ".build";
+
+  public static final String K = KMEANS + ".k";
+
 }

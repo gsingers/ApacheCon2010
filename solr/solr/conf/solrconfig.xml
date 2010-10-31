@@ -46,10 +46,7 @@
   <!-- A dir option by itself adds any files found in the directory to the
        classpath, this is useful for including all jars in a directory.
     -->
-    <lib dir="../../lib/clustering"/>
-  <lib dir="../../hadoop-conf"/>
-    <lib dir="../../target/"/>
-    <lib dir="../../lib/" />
+    <!--<lib dir="../../lib/clustering"/>-->
 
   <!--<lib dir="../../contrib/extraction/lib" />-->
   <!-- When a regex is specified in addition to a directory, only the files in that
@@ -712,10 +709,12 @@
       <str name="name">stc</str>
       <str name="carrot.algorithm">org.carrot2.clustering.stc.STCClusteringAlgorithm</str>
     </lst>
-    <lst name="engine" class="com.grantingersoll.intell.clustering.KMeansClusteringEngine">
+    <lst name="engine" >
       <str name="name">kmeans</str>
+      <str name="classname">com.grantingersoll.intell.clustering.KMeansClusteringEngine</str>
       <!-- relative to the data dir -->
       <str name="dir">kmeans</str>
+      <int name="k">10</int>
       <str name="inputField">body</str>
       <str name="distanceMeasure">org.apache.mahout.common.distance.CosineDistanceMeasure</str>
       <int name="maxIterations">20</int>

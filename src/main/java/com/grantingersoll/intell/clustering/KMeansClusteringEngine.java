@@ -13,6 +13,7 @@ import org.apache.hadoop.io.Writable;
 import org.apache.mahout.clustering.Cluster;
 import org.apache.mahout.clustering.WeightedVectorWritable;
 import org.apache.mahout.clustering.kmeans.KMeansDriver;
+import org.apache.mahout.clustering.kmeans.RandomSeedGenerator;
 import org.apache.mahout.common.Pair;
 import org.apache.mahout.common.distance.CosineDistanceMeasure;
 import org.apache.mahout.common.distance.DistanceMeasure;
@@ -38,10 +39,15 @@ import org.apache.solr.schema.SchemaField;
 import org.apache.solr.search.DocSet;
 import org.apache.solr.search.SolrIndexReader;
 import org.apache.solr.search.SolrIndexSearcher;
+import org.apache.solr.util.RefCounted;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.Charset;
@@ -55,6 +61,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -98,7 +105,7 @@ public class KMeansClusteringEngine extends DocumentClusteringEngine implements 
   private DistanceMeasure measure;
   private double convergence = 0.001;
   private int maxIters = 20;
-
+  private int k = 10;
   //private Object swapContext = new Object();
   private ExecutorService execService;
   protected Future<ClusterJob> theFuture;
@@ -118,13 +125,16 @@ public class KMeansClusteringEngine extends DocumentClusteringEngine implements 
     //check to see if we have new results
     try {
       if (theFuture != null) {
+        //see if we have new results, but don't wait too long for them
         ClusterJob job = theFuture.get(1, TimeUnit.MILLISECONDS);
         if (lastSuccessful != null) {
-          //we have new results
           //clean up the old ones
           //TODO: clean up the old dirs before switching lastSuccessful
-          lastSuccessful = job;
         }
+        lastSuccessful = job;
+        theFuture = null;
+      } else {
+
       }
 
     } catch (InterruptedException e) {
@@ -143,7 +153,7 @@ public class KMeansClusteringEngine extends DocumentClusteringEngine implements 
       if ((includePoints || clusterId != Integer.MIN_VALUE || docId != null) && toPoints == null) {
         //load the points
         try {
-          toPoints = readPoints(new Path(lastSuccessful.jobDir + File.pathSeparator + "points"), lastSuccessful.conf);
+          toPoints = readPoints(new Path(lastSuccessful.jobDir + File.separator + "points"), lastSuccessful.conf);
         } catch (IOException e) {
           throw new SolrException(SolrException.ErrorCode.SERVER_ERROR, "Unable to load points: " + lastSuccessful);
         }
@@ -189,6 +199,11 @@ public class KMeansClusteringEngine extends DocumentClusteringEngine implements 
           result.add(String.valueOf(clusterId), points);
         }
       }
+    } else if (params.getBool(BUILD, false)) {
+      RefCounted<SolrIndexSearcher> refCnt = core.getSearcher();
+      int theK = params.getInt(K, 10);
+      cluster(refCnt.get(), theK);
+      refCnt.decref();
     }
     return result;
   }
@@ -208,6 +223,9 @@ public class KMeansClusteringEngine extends DocumentClusteringEngine implements 
     this.core = core;
     String dirStr = params.get("dir");
     clusterBaseDir = new File(dirStr);
+    if (clusterBaseDir.isAbsolute() == false) {
+      clusterBaseDir = new File(core.getDataDir(), dirStr);
+    }
     clusterBaseDir.mkdirs();
     inputField = params.get("inputField");
     String distMeas = params.get("distanceMeasure");
@@ -224,6 +242,13 @@ public class KMeansClusteringEngine extends DocumentClusteringEngine implements 
     maxIters = params.getInt("maxIterations", 20);
     cacheClusters = params.getBool("cacheClusters", true);
     cachePoints = params.getBool("cachePoints", true);
+    this.k = params.getInt("k");
+    //See if we have clusters already
+    File nowFile = new File(clusterBaseDir, "lastJob");
+    if (nowFile.exists()) {
+      lastSuccessful = readJobDetails(nowFile);
+
+    }
     return result;
   }
 
@@ -234,21 +259,25 @@ public class KMeansClusteringEngine extends DocumentClusteringEngine implements 
   }
 
   public void newSearcher(SolrIndexSearcher newSearcher, SolrIndexSearcher currentSearcher) {
+    cluster(newSearcher, k);
+  }
 
+  private void cluster(SolrIndexSearcher searcher, int k) {
+    log.info("Clustering");
     //go and do the clustering.  First, we need to export the fields
-    SchemaField keyField = core.getSchema().getUniqueKeyField();
+    SchemaField keyField = searcher.getSchema().getUniqueKeyField();
     //TODO: should we prevent overlaps here if there are too many commits?  Clustering isn't something that has to be fresh all the time
     // and we likely can't sustain that anyway.
     if (keyField != null) {//we must have a key field
       //do this part synchronously here, and then spawn off a thread to do the clustering, otherwise it will take too long
       String idName = keyField.getName();
       Weight weight = new TFIDF();
-      SolrIndexReader reader = newSearcher.getReader();
+      SolrIndexReader reader = searcher.getReader();
       try {
         TermInfo termInfo = new CachedTermInfo(reader, "content", 1, 100);
         LuceneIterable li = new LuceneIterable(reader, idName, inputField, new TFDFMapper(reader, weight, termInfo));
         Date now = new Date();
-        String jobDir = clusterBaseDir.getAbsolutePath() + File.pathSeparator + "clusters-" + now.getTime();
+        String jobDir = clusterBaseDir.getAbsolutePath() + File.separator + "clusters-" + now.getTime();
         log.info("Dumping {} to {}", inputField, clusterBaseDir);
         File outFile = new File(jobDir, "index-" + inputField + ".vec");
         VectorWriter vectorWriter = getSeqFileWriter(outFile.getAbsolutePath());
@@ -265,17 +294,57 @@ public class KMeansClusteringEngine extends DocumentClusteringEngine implements 
         writer.close();
         //OK, the dictionary is dumped, now we can cluster, do this via a thread in the background.
         //when it's done, we can switch to it
-        theFuture = execService.submit(new ClusterCallable(new ClusterJob(
+        ClusterJob clusterJob = new ClusterJob(k,
                 jobDir,
                 new Path(outFile.getAbsolutePath()),
-                new Path(jobDir),
-                new Path(jobDir),
+                new Path(jobDir + File.separator + "clusters"),
+                new Path(jobDir + File.separator + "output"),
                 new Path(dictOutFile.getAbsolutePath())
-        )));
+        );
+
+        writeJobDetails(clusterJob);
+        theFuture = execService.submit(new ClusterCallable(clusterJob));
       } catch (IOException e) {
         log.error("Exception", e);
       }
     }
+
+  }
+
+  private void writeJobDetails(ClusterJob clusterJob) throws IOException {
+    File nowFile = new File(clusterBaseDir, "lastJob");
+    Properties props = new Properties();
+    props.put("jobDir", clusterJob.jobDir);
+    props.put("k", clusterJob.k);
+    props.put("clustersIn", clusterJob.clustersIn);
+    props.put("output", clusterJob.output);
+    props.put("input", clusterJob.input);
+    props.put("dictionary", clusterJob.dictionary);
+    FileWriter fWriter = new FileWriter(nowFile);
+    props.store(fWriter, "lastJob");
+    fWriter.close();
+  }
+
+  private ClusterJob readJobDetails(File jobFile) {
+    log.info("Reading job from: {} ", jobFile);
+    ClusterJob result = null;
+    try {
+      FileReader fReader = new FileReader(jobFile);
+      Properties props = new Properties();
+      props.load(fReader);
+      result = new ClusterJob(Integer.parseInt(props.get("k").toString()),
+              props.get("jobDir").toString(), new Path(props.get("input").toString()),
+              new Path(props.get("clustersIn").toString()),
+              new Path(props.get("output").toString()),
+              new Path(props.get("dictionary").toString())
+              );
+    } catch (FileNotFoundException e) {
+      throw new SolrException(SolrException.ErrorCode.SERVER_ERROR, "Unable to load: " + jobFile, e);
+    } catch (IOException e) {
+      throw new SolrException(SolrException.ErrorCode.SERVER_ERROR, "Unable to read: " + jobFile, e);
+    }
+    log.info("Read job: {}", result);
+    return result;
   }
 
   private class ClusterJob {
@@ -284,9 +353,11 @@ public class KMeansClusteringEngine extends DocumentClusteringEngine implements 
     Configuration conf;
     Map<Integer, Cluster> clusters;
     Map<Integer, List<String>> clusterIdToPoints;
+    int k;
 
 
-    private ClusterJob(String jobDir, Path input, Path clustersIn, Path output, Path dictionary) {
+    private ClusterJob(int k, String jobDir, Path input, Path clustersIn, Path output, Path dictionary) {
+      this.k = k;
       this.jobDir = jobDir;
       this.input = input;
       this.clustersIn = clustersIn;
@@ -303,6 +374,7 @@ public class KMeansClusteringEngine extends DocumentClusteringEngine implements 
               ", clustersIn=" + clustersIn +
               ", output=" + output +
               ", dictionary=" + dictionary +
+              ", k=" + k +
               '}';
     }
   }
@@ -316,7 +388,9 @@ public class KMeansClusteringEngine extends DocumentClusteringEngine implements 
     }
 
     public ClusterJob call() throws Exception {
-
+      log.info("Randomly seeding {} vectors from the input: {}", job.k, job.input);
+      job.clustersIn = RandomSeedGenerator.buildRandom(job.input, job.clustersIn, job.k, measure);
+      log.info("KMeansDriver.run: " + job);
       KMeansDriver.run(job.conf, job.input, job.clustersIn, job.output, measure, convergence,
               maxIters, true, true);
       //job is done, should we build data structure now, in the background or wait until requested
@@ -324,8 +398,9 @@ public class KMeansClusteringEngine extends DocumentClusteringEngine implements 
         job.clusters = loadClusters(job);
       }
       if (cachePoints == false) {
-        job.clusterIdToPoints = readPoints(new Path(job.jobDir + File.pathSeparator + "points"), job.conf);
+        job.clusterIdToPoints = readPoints(new Path(job.jobDir + File.separator + "points"), job.conf);
       }
+      log.info("Finished KMeansDriver.run: " + job);
       return job;
     }
   }
