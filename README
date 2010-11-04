@@ -1,1 +1,25 @@
 Code examples for Grant Ingersoll's ApacheCon 2010 (Atlanta) talk
+
+Prereqs:
+
+1. JDK 1.6
+2. Ant 1.7.x
+
+To setup:
+
+1. ant install
+  This will download a rather large Wikipedia file and chunk it up into smaller sets
+
+To train the classifier:
+
+1. ant prepare-docs
+2. ant prepare-test-docs
+3. ant train
+
+
+To run Solr:
+
+1. ant war
+2. cd solr
+3. java -jar start.jar
+

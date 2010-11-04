@@ -71,7 +71,7 @@
       </jar>
   </target>
 
-  <target name="war" depends="init,compile,jar">
+  <target name="war" depends="init,compile,jar" description="Create the Solr WAR">
     <!--<copy tofile="solr/webapps/solr.war" file="lib/solr/solr-clean.war"/>-->
     <delete  verbose="true" failonerror="false">
       <fileset dir="solr/work">
