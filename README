@@ -23,3 +23,7 @@ To run Solr:
 2. cd solr
 3. java -jar start.jar
 
+Index the content:
+
+1. TBD, see the Indexer class
+
